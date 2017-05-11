@@ -13,6 +13,7 @@ library(shiny)
 library(shinyjs)
 
 data = read.csv("data.csv", header = TRUE, sep=",")
+
 cleanedData <- data[-which(is.na(data$loan_amnt) | is.na(data$term) | is.na(data$purpose) | is.na(data$dti) | is.na(data$addr_state) | is.na(data$home_ownership) | is.na(data$annual_inc) | is.na(data$fico_range_low) | is.na(data$open_acc) | is.na(data$revol_bal) | is.na(data$inq_last_6mths) | is.na(data$emp_length)),]
 
 myvars <- c("int_rate", "loan_amnt","term", "fico_range_low", "inq_last_6mths", "open_acc", "purpose", "dti", "home_ownership", "emp_length", "addr_state", "member_id", "loan_status")
@@ -220,13 +221,6 @@ calcFactors <- function(userData, coef.int_rate) {
   return(factorSummary)
 }
 
-#data_train <- read.csv("/Users/priyankakulkarni/Downloads/trainData.csv",header=TRUE)
-#data_test <-  read.csv("/Users/priyankakulkarni/Downloads/testData.csv",header=TRUE)
-#data.lm <- lm(int_rate ~ loan_amnt + term + fico_range_low + inq_last_6mths + open_acc + purpose + dti + home_ownership + emp_length + addr_state, data = data_train)
-#myvars <- c("int_rate", "loan_amnt","term", "fico_range_low", "inq_last_6mths", "open_acc", "purpose", "dti", "home_ownership", "emp_length", "addr_state", "member_id")
-#cleanedData <- data_train[myvars]
-
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   
@@ -253,7 +247,7 @@ ui <- fluidPage(
         
         mainPanel(
           
-          actionButton("printData","Print data"),
+        #  actionButton("printData","Print data"),
           
           textInput("member_id", "Enter member id", ""),
           actionButton("login","Login"),
@@ -263,8 +257,8 @@ ui <- fluidPage(
             actionButton("logout","Logout")
           ),
           conditionalPanel(
-            condition = "input.register > 0",
-            actionButton("back","Back")
+            condition = "input.register > 0"
+          #  actionButton("back","Back")
           )
 
           
@@ -277,11 +271,11 @@ ui <- fluidPage(
       textInput('new_member_id', "Enter new member id",""),
       numericInput("new_fico_range_low", "Enter your FICO credit score", 0, min = 1),
       selectInput("new_home_ownership", "Type of home ownership:",
-                  c("Own" = "own",
-                    "Rent" = "rent",
-                    "Mortgage" = "mortgage",
-                    "None" = "none",
-                    "Other" = "other")),
+                  c("Own" = "OWN",
+                    "Rent" = "RENT",
+                    "Mortgage" = "MORTGAGE",
+                    "None" = "NONE",
+                    "Other" = "OTHER")),
       selectInput("new_emp_length", "Employment duration:",
                   c("< 1 Year" = "< 1 year",
                     "1 year" = "1 year",
@@ -314,23 +308,25 @@ ui <- fluidPage(
   #    tableOutput("member_info")
   #  )
 #  ),
-  
+div(id = "login_panel",
       conditionalPanel(
         condition = "input.login > 0",
         sidebarPanel(
         selectInput("purpose", "Purpose of loan:",
                     c("Credit Card" = "credit_card",
                       "Education" = "educational",
-                      "Home" = "home",
+                      "Debt Consolidation" = "debt_consolidation",
+                      "Home Improvement" = "home_improvement",
                       "Car" = "car",
                       "Home" = "house",
                       "Business" = "small_business",
                       "Vacation" = "vacation",
                       "Wedding" = "wedding",
                       "Major purchase" = "major_purchase",
+                      "Renewable Energy" = "renewable_energy",
                       "Medical" = "medical",
                       "Moving" = "moving",
-                      "Other" = "Other")),
+                      "Other" = "other")),
         #  textInput("loan_amt", "Enter loan amount", "Amount in $"),
         numericInput("loan_amt", "Enter loan amount", 10, min = 1),
        # textInput("loan_duration", "Enter loan duration in months", ""),
@@ -344,8 +340,10 @@ ui <- fluidPage(
         
       )
       
-     ),
-  
+     )
+    ),
+
+div(id = "results",
   conditionalPanel(
     condition = "input.submit > 0",
     width = "500px",
@@ -358,7 +356,7 @@ ui <- fluidPage(
     ),
  uiOutput('factors')
   )
-        
+)
   
         
        #  plotOutput("distPlot"),
@@ -374,7 +372,7 @@ ui <- fluidPage(
 )
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   # cleanedVals <- reactiveValues(df_data = sampleData)
    
@@ -385,7 +383,12 @@ server <- function(input, output) {
    shinyjs::hide("reg_panel")
    
    sampleVals = reactive ({
-     sampleData
+     if (input$new_user > 0) {
+       df <- data.frame(member_id=input$new_member_id,fico_range_low=input$new_fico_range_low,open_acc=input$new_open_acc, dti=input$new_dti,emp_length=input$new_emp_length, home_ownership=input$new_home_ownership, inq_last_6mths=input$new_inq_last_6mths,int_rate=NA, loan_amnt = NA, term = NA, purpose=NA, addr_state=NA, loan_status =NA)
+       cleanedVals <- rbind(cleanedVals, df)
+       #print(cleanedVals)
+     }
+     return(cleanedVals)
    })
    
    Data = reactive({
@@ -397,28 +400,45 @@ server <- function(input, output) {
    })
    
    observeEvent(input$printData, {
-     print(sampleData)
+     shinyjs::hide("results") 
    })
    
    observeEvent(input$new_user, {
-     df <- data.frame(member_id=input$new_member_id,fico_range_low=input$new_fico_range_low,open_acc=input$new_open_acc, dti=input$new_dti,emp_length=input$new_emp_length, home_ownership=input$new_home_ownership, inq_last_6mths=input$new_inq_last_6mths,int_rate=NA, loan_amnt = NA, term = NA, purpose=NA, addr_state=NA, loan_status =NA)
-     sampleData <- rbind(sampleData, df)
-     print(sampleData)
-     shinyjs::hide("reg_panel")
-     shinyjs::enable("login")
+  #   df <- data.frame(member_id=input$new_member_id,fico_range_low=input$new_fico_range_low,open_acc=input$new_open_acc, dti=input$new_dti,emp_length=input$new_emp_length, home_ownership=input$new_home_ownership, inq_last_6mths=input$new_inq_last_6mths,int_rate=NA, loan_amnt = NA, term = NA, purpose=NA, addr_state=NA, loan_status =NA)
+  #   sampleData <- rbind(sampleVals(), df)
+ #    print(sampleData)
+  #  updateTextInput(session, "new_member_id", label = "Enter member id", value = "")
+    
+    
+     
+    shinyjs::hide("reg_panel")    
+    shinyjs::hide("login_panel") 
+    shinyjs::hide("results") 
+    shinyjs::enable("login")
+    shinyjs::enable("member_id")
    #  session = getDefaultReactiveDomain()
    #  session$reload()
    })
    
    observeEvent(input$register, {
+     updateNumericInput(session, "new_fico_range_low", value = "0")
+     updateNumericInput(session, "new_inq_last_6mths", value = "0")
+     updateNumericInput(session, "new_open_acc", value = "0")
+     updateNumericInput(session, "new_dti", value = "0")
      shinyjs::disable("login")
      shinyjs::show("reg_panel")
+     shinyjs::hide("login_panel")
+     shinyjs::disable("member_id")
    })
    
    observeEvent(input$back, {
    #  session = getDefaultReactiveDomain()
    #  session$reload()
      shinyjs::enable("login")
+     shinyjs::enable("register")
+     shinyjs::hide("login_panel")
+     shinyjs::hide("reg_panel")
+     shinyjs::enable("member_id")
    })
    
 #   NewMember = reactive({
@@ -429,14 +449,11 @@ server <- function(input, output) {
  #     }
 #   })
    
-   
-   
-   
    MemberData = reactive({
      if (input$member_id != '') {
-       df <- data.frame(sampleVals[sampleVals$member_id==input$member_id,])
+       df <- data.frame(sampleVals()[sampleVals()$member_id==input$member_id,])
        print(input$member_id)
-       print(sampleData)
+     #  print(sampleVals())
        return(list(df=df))
      }
    })
@@ -445,12 +462,20 @@ server <- function(input, output) {
    
    
    observeEvent(input$login, {
-   #  shinyjs::disable("login")
+     shinyjs::disable("login")
      shinyjs::disable("register")
-   #  shinyjs::disable("member_id")
+     shinyjs::disable("member_id")
+     shinyjs::hide("reg_panel")
+     shinyjs::show("login_panel")
    })
    
    observeEvent(input$logout, {
+     shinyjs::hide("reg_panel")
+     shinyjs::hide("results")
+     shinyjs::hide("login_panel")
+     shinyjs::enable("member_id")
+     shinyjs::enable("register")
+     shinyjs::enable("login")
     # session = getDefaultReactiveDomain(); session$reload()
    }) 
    
@@ -466,6 +491,7 @@ server <- function(input, output) {
    
    observeEvent(input$submit, {
      
+     shinyjs::show("results") 
      
      output$table <- renderTable({
        if (is.null(Data())) {return()}
@@ -516,17 +542,10 @@ server <- function(input, output) {
      width = "500px"
      #, 'sanitize.text.function' = function(x){x}
      )
-     
-    
-    
-     
+ 
    }) 
    
-   
-   
-  
-  
-   
+
   # output$intRate <- renderDataTable({pred})
    
    output$distPlot <- renderPlot({
@@ -541,4 +560,3 @@ server <- function(input, output) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
